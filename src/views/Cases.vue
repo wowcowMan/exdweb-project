@@ -1,8 +1,18 @@
 <script setup>
 // 簡單案例清單
 const cases = [
-  { id: 1, title: '台中老屋翻新', description: '將 30 年老屋改造成現代住宅。' },
-  { id: 2, title: '商業大樓重建', description: '提升結構安全，新增現代設施。' }
+  {
+    id: 1,
+    title: '台中老屋翻新',
+    description: '將 30 年老屋改造成現代住宅。',
+    image: 'https://picsum.photos/300/200/?random=01'
+  },
+  {
+    id: 2,
+    title: '商業大樓重建',
+    description: '提升結構安全，新增現代設施。',
+    image: 'https://picsum.photos/300/200/?random=02'
+  }
 ]
 </script>
 <template>
@@ -11,6 +21,7 @@ const cases = [
     <div class="row">
       <div class="col-md-6" v-for="item in cases" :key="item.id">
         <div class="card mb-3">
+          <img :src="item.image" class="card-img-top" alt="案例圖片" style="height: 200px; object-fit: cover;">
           <div class="card-body">
             <h5 class="card-title">{{ item.title }}</h5>
             <p class="card-text">{{ item.description }}</p>
