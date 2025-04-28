@@ -25,16 +25,16 @@ const toggleName = () => {
       <div class="collapse navbar-collapse" id="navbarNav">
         <ul class="navbar-nav">
           <li class="nav-item">
-            <router-link class="nav-link active" to="/">首頁</router-link>
+            <router-link class="nav-link" to="/" active-class="active">首頁</router-link>
           </li>
           <li class="nav-item">
-            <router-link class="nav-link" to="/about">關於我們</router-link>
+            <router-link class="nav-link" to="/about" active-class="active">關於我們</router-link>
           </li>
           <li class="nav-item">
-            <router-link class="nav-link" to="/">案例展示</router-link>
+            <router-link class="nav-link" to="/cases" active-class="active">案例展示</router-link>
           </li>
           <li class="nav-item">
-            <router-link class="nav-link" to="/">聯繫我們</router-link>
+            <router-link class="nav-link" to="/contact" active-class="active">聯繫我們</router-link>
           </li>
         </ul>
       </div>
