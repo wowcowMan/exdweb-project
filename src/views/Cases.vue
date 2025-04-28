@@ -20,13 +20,15 @@ const cases = [
     <h1 class="text-center">案例展示</h1>
     <div class="row">
       <div class="col-md-6" v-for="item in cases" :key="item.id">
-        <div class="card mb-3">
-          <img :src="item.image" class="card-img-top" alt="案例圖片" style="height: 200px; object-fit: cover;">
-          <div class="card-body">
-            <h5 class="card-title">{{ item.title }}</h5>
-            <p class="card-text">{{ item.description }}</p>
+        <router-link :to="`/cases/${item.id}`" class="text-decoration-none">
+          <div class="card mb-3">
+            <img :src="item.image" class="card-img-top" alt="案例圖片" style="height: 200px; object-fit: cover;">
+            <div class="card-body">
+              <h5 class="card-title">{{ item.title }}</h5>
+              <p class="card-text">{{ item.description }}</p>
+            </div>
           </div>
-        </div>
+        </router-link>
       </div>
     </div>
   </div>
