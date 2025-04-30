@@ -12,14 +12,16 @@ const cases = [
     title: '台中老屋翻新',
     description: '將 30 年老屋改造成現代住宅，保留傳統元素，融入現代設計。',
     image: 'https://picsum.photos/300/200/?random=01',
-    details: '此項目耗時 6 個月，包含結構加固、內部重新設計，以及節能設施安裝。'
+    details: '此項目耗時 6 個月，包含結構加固、內部重新設計，以及節能設施安裝。',
+    location: '台中市西區'
   },
   {
     id: 2,
     title: '商業大樓重建',
     description: '提升結構安全，新增現代設施，符合最新建築規範。',
     image: 'https://picsum.photos/300/200/?random=02',
-    details: '項目包括地下停車場擴建、電梯現代化，以及外牆翻新，總工期 12 個月。'
+    details: '項目包括地下停車場擴建、電梯現代化，以及外牆翻新，總工期 12 個月。',
+    location: '台中市北區'
   }
 ]
 
@@ -33,6 +35,7 @@ const selectedCase = ref(cases.find(item => item.id === parseInt(caseId)) || {})
       <img :src="selectedCase.image" class="img-fluid mb-3" alt="案例圖片" style="max-height: 400px; object-fit: cover;">
       <p class="text-center">{{ selectedCase.description }}</p>
       <p class="text-center"><strong>詳細說明：</strong> {{ selectedCase.details }}</p>
+      <p class="text-center"><strong>地點：</strong> {{ selectedCase.location }}</p>
       <router-link to="/cases" class="btn btn-primary">返回案例清單</router-link>
     </div>
     <div v-else>
