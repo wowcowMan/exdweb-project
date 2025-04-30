@@ -3,8 +3,8 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { auth, db, storage } from '../firebase'
 import { signOut, onAuthStateChanged } from 'firebase/auth'
-import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, getDoc } from 'firebase/firestore'
-import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'
+import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore'
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage'
 
 const router = useRouter()
 const cases = ref([])
@@ -22,7 +22,7 @@ const caseToDelete = ref(null)
 const newImageFiles = ref([])
 const editImageFiles = ref([])
 const maxFileSize = 2 * 1024 * 1024 // 2MB
-const triggerButton = ref(null) // 儲存觸發模態框的按鈕
+const triggerButton = ref(null)
 
 // 監聽用戶狀態
 onAuthStateChanged(auth, (user) => {
@@ -36,10 +36,11 @@ const loadCases = async () => {
     cases.value = querySnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
-      images: doc.data().images || [doc.data().image]
+      images: doc.data().images || []
     }))
   } catch (error) {
     console.error('載入案例失敗：', error)
+    errorMessage.value = '載入案例失敗，請稍後再試'
   }
 }
 loadCases()
@@ -54,13 +55,13 @@ const uploadImages = async (files) => {
     }
     try {
       const storagePath = `cases/${Date.now()}_${file.name}`
-      const fileRef = storageRef(storage, storagePath)
+      const fileRef = storageRef(storage, storagePath) // 修正：使用 storage
       await uploadBytes(fileRef, file)
       const url = await getDownloadURL(fileRef)
       urls.push(url)
     } catch (error) {
-      console.error('圖片上傳失敗：', error)
-      errorMessage.value = '圖片上傳失敗，請稍後再試'
+      console.error(`圖片上傳失敗（${file.name}）：`, error)
+      errorMessage.value = `圖片 ${file.name} 上傳失敗：${error.message}`
       return null
     }
   }
@@ -83,7 +84,7 @@ const addCase = async () => {
     loadCases()
   } catch (error) {
     console.error('新增案例失敗：', error)
-    errorMessage.value = '新增失敗，請稍後再試'
+    errorMessage.value = `新增案例失敗：${error.message}`
     successMessage.value = ''
   }
 }
@@ -116,7 +117,7 @@ const updateCase = async () => {
     loadCases()
   } catch (error) {
     console.error('更新案例失敗：', error)
-    errorMessage.value = '更新失敗，請稍後再試'
+    errorMessage.value = `更新案例失敗：${error.message}`
     successMessage.value = ''
   }
 }
@@ -129,40 +130,16 @@ const cancelEdit = () => {
 // 刪除案例
 const confirmDelete = (item, event) => {
   caseToDelete.value = item
-  triggerButton.value = event.currentTarget // 儲存觸發按鈕
+  triggerButton.value = event.currentTarget
 }
 
 const deleteCase = async () => {
   if (!caseToDelete.value) return
-  // 先移動焦點，避免模態框關閉時焦點滯留
   if (triggerButton.value) {
     triggerButton.value.focus()
   }
   try {
-    // 1. 取得案例資料以獲取 images 陣列
     const docRef = doc(db, 'cases', caseToDelete.value.id)
-    const docSnap = await getDoc(docRef)
-    if (!docSnap.exists()) {
-      errorMessage.value = '案例不存在'
-      return
-    }
-    const caseData = docSnap.data()
-    const images = caseData.images || []
-
-    // 2. 刪除 Storage 中的圖片
-    const deletePromises = images.map(async (imageUrl) => {
-      try {
-        const path = decodeURIComponent(imageUrl.split('/o/')[1].split('?')[0])
-        const fileRef = storageRef(storage, path)
-        await deleteObject(fileRef)
-        console.log(`圖片 ${path} 已刪除`)
-      } catch (error) {
-        console.error(`刪除圖片 ${path} 失敗:`, error)
-      }
-    })
-    await Promise.all(deletePromises)
-
-    // 3. 刪除 Firestore 文件
     await deleteDoc(docRef)
     successMessage.value = '案例刪除成功！'
     errorMessage.value = ''
@@ -170,7 +147,7 @@ const deleteCase = async () => {
     loadCases()
   } catch (error) {
     console.error('刪除案例失敗：', error)
-    errorMessage.value = '刪除失敗，請稍後再試'
+    errorMessage.value = `刪除案例失敗：${error.message}`
     successMessage.value = ''
   }
 }
@@ -182,6 +159,7 @@ const logout = async () => {
     router.push('/login')
   } catch (error) {
     console.error('登出失敗：', error)
+    errorMessage.value = '登出失敗，請稍後再試'
   }
 }
 
@@ -189,14 +167,12 @@ const logout = async () => {
 onMounted(() => {
   const modal = document.getElementById('deleteModal')
   if (modal) {
-    // 模態框顯示時，將焦點設置到「刪除」按鈕
     modal.addEventListener('shown.bs.modal', () => {
       const deleteButton = modal.querySelector('.btn-danger')
       if (deleteButton) {
         deleteButton.focus()
       }
     })
-    // 模態框隱藏時，恢復焦點到觸發按鈕
     modal.addEventListener('hidden.bs.modal', () => {
       if (triggerButton.value) {
         triggerButton.value.focus()
@@ -229,7 +205,7 @@ onUnmounted(() => {
             <label for="title" class="form-label">標題</label>
             <input v-model="newCase.title" type="text" class="form-control" id="title" required>
           </div>
-           <div class="mb-3">
+          <div class="mb-3">
             <label for="image-files" class="form-label">上傳圖片（建議壓縮至500KB以下，可選多張）</label>
             <input type="file" class="form-control" id="image-files" accept="image/jpeg,image/png" multiple @change="newImageFiles = $event.target.files">
           </div>
@@ -316,14 +292,14 @@ onUnmounted(() => {
       </div>
     </div>
     <!-- 刪除確認模態框 -->
-    <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel">
+    <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-describedby="deleteModalDesc">
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="deleteModalLabel">確認刪除</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="關閉"></button>
           </div>
-          <div class="modal-body">
+          <div class="modal-body" id="deleteModalDesc">
             你確定要刪除案例「{{ caseToDelete?.title }}」嗎？此操作無法恢復。
           </div>
           <div class="modal-footer">
