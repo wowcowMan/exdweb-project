@@ -1,11 +1,10 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { auth, db, storage } from '../firebase'
 import { signOut, onAuthStateChanged } from 'firebase/auth'
-import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore'
-import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage'
-
+import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, getDoc } from 'firebase/firestore'
+import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'
 
 const router = useRouter()
 const cases = ref([])
@@ -20,9 +19,10 @@ const editingCase = ref(null)
 const successMessage = ref('')
 const errorMessage = ref('')
 const caseToDelete = ref(null)
-const newImageFiles = ref([]) // 改為陣列
+const newImageFiles = ref([])
 const editImageFiles = ref([])
 const maxFileSize = 2 * 1024 * 1024 // 2MB
+const triggerButton = ref(null) // 儲存觸發模態框的按鈕
 
 // 監聽用戶狀態
 onAuthStateChanged(auth, (user) => {
@@ -36,7 +36,7 @@ const loadCases = async () => {
     cases.value = querySnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
-      images: doc.data().images || [doc.data().image] // 兼容舊資料
+      images: doc.data().images || [doc.data().image]
     }))
   } catch (error) {
     console.error('載入案例失敗：', error)
@@ -78,7 +78,7 @@ const addCase = async () => {
     await addDoc(collection(db, 'cases'), { ...newCase.value, images: imageUrls })
     successMessage.value = '案例新增成功！'
     errorMessage.value = ''
-    newCase.value = { title: '', description: '', image: '', details: '', location: '' }
+    newCase.value = { title: '', description: '', images: [], details: '', location: '' }
     newImageFiles.value = []
     loadCases()
   } catch (error) {
@@ -105,7 +105,7 @@ const updateCase = async () => {
     await updateDoc(docRef, {
       title: editingCase.value.title,
       description: editingCase.value.description,
-      image: imageUrls,
+      images: imageUrls,
       details: editingCase.value.details,
       location: editingCase.value.location
     })
@@ -127,14 +127,43 @@ const cancelEdit = () => {
 }
 
 // 刪除案例
-const confirmDelete = (item) => {
+const confirmDelete = (item, event) => {
   caseToDelete.value = item
+  triggerButton.value = event.currentTarget // 儲存觸發按鈕
 }
 
 const deleteCase = async () => {
   if (!caseToDelete.value) return
+  // 先移動焦點，避免模態框關閉時焦點滯留
+  if (triggerButton.value) {
+    triggerButton.value.focus()
+  }
   try {
-    await deleteDoc(doc(db, 'cases', caseToDelete.value.id))
+    // 1. 取得案例資料以獲取 images 陣列
+    const docRef = doc(db, 'cases', caseToDelete.value.id)
+    const docSnap = await getDoc(docRef)
+    if (!docSnap.exists()) {
+      errorMessage.value = '案例不存在'
+      return
+    }
+    const caseData = docSnap.data()
+    const images = caseData.images || []
+
+    // 2. 刪除 Storage 中的圖片
+    const deletePromises = images.map(async (imageUrl) => {
+      try {
+        const path = decodeURIComponent(imageUrl.split('/o/')[1].split('?')[0])
+        const fileRef = storageRef(storage, path)
+        await deleteObject(fileRef)
+        console.log(`圖片 ${path} 已刪除`)
+      } catch (error) {
+        console.error(`刪除圖片 ${path} 失敗:`, error)
+      }
+    })
+    await Promise.all(deletePromises)
+
+    // 3. 刪除 Firestore 文件
+    await deleteDoc(docRef)
     successMessage.value = '案例刪除成功！'
     errorMessage.value = ''
     caseToDelete.value = null
@@ -155,7 +184,36 @@ const logout = async () => {
     console.error('登出失敗：', error)
   }
 }
+
+// 監聽模態框事件
+onMounted(() => {
+  const modal = document.getElementById('deleteModal')
+  if (modal) {
+    // 模態框顯示時，將焦點設置到「刪除」按鈕
+    modal.addEventListener('shown.bs.modal', () => {
+      const deleteButton = modal.querySelector('.btn-danger')
+      if (deleteButton) {
+        deleteButton.focus()
+      }
+    })
+    // 模態框隱藏時，恢復焦點到觸發按鈕
+    modal.addEventListener('hidden.bs.modal', () => {
+      if (triggerButton.value) {
+        triggerButton.value.focus()
+      }
+    })
+  }
+})
+
+onUnmounted(() => {
+  const modal = document.getElementById('deleteModal')
+  if (modal) {
+    modal.removeEventListener('shown.bs.modal', () => {})
+    modal.removeEventListener('hidden.bs.modal', () => {})
+  }
+})
 </script>
+
 <template>
   <div class="container mt-5">
     <h1 class="text-center mb-4">管理後台</h1>
@@ -171,7 +229,7 @@ const logout = async () => {
             <label for="title" class="form-label">標題</label>
             <input v-model="newCase.title" type="text" class="form-control" id="title" required>
           </div>
-          <div class="mb-3">
+           <div class="mb-3">
             <label for="image-files" class="form-label">上傳圖片（建議壓縮至500KB以下，可選多張）</label>
             <input type="file" class="form-control" id="image-files" accept="image/jpeg,image/png" multiple @change="newImageFiles = $event.target.files">
           </div>
@@ -251,14 +309,14 @@ const logout = async () => {
             <span>
               <router-link :to="`/cases/${item.id}`" class="btn btn-sm btn-outline-primary me-2">查看</router-link>
               <button class="btn btn-sm btn-outline-success me-2" @click="editCase(item)">編輯</button>
-              <button class="btn btn-sm btn-outline-danger" @click="confirmDelete(item)" data-bs-toggle="modal" data-bs-target="#deleteModal">刪除</button>
+              <button class="btn btn-sm btn-outline-danger" @click="confirmDelete(item, $event)" data-bs-toggle="modal" data-bs-target="#deleteModal">刪除</button>
             </span>
           </li>
         </ul>
       </div>
     </div>
     <!-- 刪除確認模態框 -->
-    <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel">
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
@@ -277,6 +335,7 @@ const logout = async () => {
     </div>
   </div>
 </template>
+
 <style scoped>
 .mt-5 { margin-top: 3rem; }
 .mb-4 { margin-bottom: 1.5rem; }

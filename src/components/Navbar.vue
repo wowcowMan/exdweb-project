@@ -3,7 +3,7 @@ import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
 
 const route = useRoute()
-const companyName = ref('台中危老重建')
+const companyName = ref('地價創產一站式服務的好管家')
 const isEnglish = ref(false)
 
 const toggleLanguage = () => {

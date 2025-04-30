@@ -24,8 +24,8 @@ onMounted(async () => {
         const img = new Image()
         img.src = url
       })
-      console.log('Case data:', selectedCase.value)
-      console.log('Images:', selectedCase.value.images)
+      // console.log('Case data:', selectedCase.value)
+      // console.log('Images:', selectedCase.value.images)
     } else {
       console.error('案例不存在')
     }
@@ -39,17 +39,41 @@ onMounted(async () => {
   <div class="container mt-5">
     <h1 class="text-center">{{ selectedCase.title || '案例未找到' }}</h1>
     <div v-if="selectedCase.id" class="card shadow-sm">
-      <div v-if="selectedCase.images && selectedCase.images.length > 0" id="caseCarousel" class="carousel slide carousel-fade mb-3" data-bs-ride="carousel">
+      <!-- 輪播 -->
+      <div v-if="selectedCase.images && selectedCase.images.length > 0" id="caseCarousel" class="carousel slide mb-3"
+        data-bs-ride="carousel">
+        <!-- 輪播指示器 -->
+        <div class="carousel-indicators">
+          <button
+            v-for="(image, index) in selectedCase.images"
+            :key="'indicator-' + index"
+            type="button"
+            data-bs-target="#caseCarousel"
+            :data-bs-slide-to="index"
+            :class="{ active: index === 0 }"
+            :aria-current="index === 0 ? 'true' : 'false'"
+            :aria-label="'Slide ' + (index + 1)"
+          ></button>
+        </div>
+        <!-- 輪播圖片 -->
         <div class="carousel-inner">
-          <div class="carousel-item" v-for="(image, index) in selectedCase.images" :key="index" :class="{ active: index === 0 }">
+          <div
+            class="carousel-item"
+            v-for="(image, index) in selectedCase.images"
+            :key="'item-' + index"
+            :class="{ active: index === 0 }"
+          >
             <img :src="image" class="d-block" alt="案例圖片">
           </div>
         </div>
-        <button v-if="selectedCase.images.length > 1" class="carousel-control-prev" type="button" data-bs-target="#caseCarousel" data-bs-slide="prev">
+        <!-- 箭頭 -->
+        <button v-if="selectedCase.images.length > 1" class="carousel-control-prev" type="button"
+          data-bs-target="#caseCarousel" data-bs-slide="prev">
           <span class="carousel-control-prev-icon" aria-hidden="true"></span>
           <span class="visually-hidden">Previous</span>
         </button>
-        <button v-if="selectedCase.images.length > 1" class="carousel-control-next" type="button" data-bs-target="#caseCarousel" data-bs-slide="next">
+        <button v-if="selectedCase.images.length > 1" class="carousel-control-next" type="button"
+          data-bs-target="#caseCarousel" data-bs-slide="next">
           <span class="carousel-control-next-icon" aria-hidden="true"></span>
           <span class="visually-hidden">Next</span>
         </button>
@@ -70,24 +94,60 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-.mt-5 { margin-top: 3rem; }
-.mb-4 { margin-bottom: 1.5rem; }
-.card { border: none; border-radius: 10px; overflow: hidden; max-width: 800px; margin: auto; }
-.shadow-sm { box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); }
-.card-body { padding: 2rem; }
-.card-text { color: #6c757d; }
-.btn-primary { background-color: #007bff; border: none; padding: 0.5rem 1.5rem; }
-.carousel { width: 100%; max-width: 800px; margin: auto; }
-.carousel-inner { width: 100%; aspect-ratio: 4 / 3; overflow: hidden; } /* 統一 4:3 比例 */
-.carousel-item { width: 100%; height: 100%; }
+.mt-5 {
+  margin-top: 3rem;
+}
+.mb-4 {
+  margin-bottom: 1.5rem;
+}
+.card {
+  border: none;
+  border-radius: 10px;
+  overflow: hidden;
+  max-width: 800px;
+  margin: auto;
+}
+.shadow-sm {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+.card-body {
+  padding: 2rem;
+}
+.card-text {
+  color: #6c757d;
+}
+.btn-primary {
+  background-color: #007bff;
+  border: none;
+  padding: 0.5rem 1.5rem;
+}
+.carousel {
+  width: 100%;
+  max-width: 800px;
+  margin: auto;
+}
+.carousel-inner {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+}
+.carousel-item {
+  width: 100%;
+  height: 100%;
+}
 .carousel-item img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   object-position: center;
 }
-.img-fluid { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; } /* 無圖片時 */
-.carousel-item {
-  transition: opacity 0.7s ease, transform 0.7s ease; /* 平滑過渡 */
+.img-fluid {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
 }
+.carousel-item {
+  transition: opacity 0.7s ease, transform 0.7s ease;
+}
+
 </style>
