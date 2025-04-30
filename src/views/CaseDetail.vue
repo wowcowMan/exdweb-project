@@ -1,33 +1,30 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
+import { db } from '../firebase'
+import { doc, getDoc } from 'firebase/firestore'
 
 const route = useRoute()
 const caseId = route.params.id // 從 URL 取得案例 ID
+const selectedCase = ref({})
 
-// 模擬案例資料（未來可從後端獲取）
-const cases = [
-  {
-    id: 1,
-    title: '台中老屋翻新',
-    description: '將 30 年老屋改造成現代住宅，保留傳統元素，融入現代設計。',
-    image: 'https://picsum.photos/300/200/?random=01',
-    details: '此項目耗時 6 個月，包含結構加固、內部重新設計，以及節能設施安裝。',
-    location: '台中市西區'
-  },
-  {
-    id: 2,
-    title: '商業大樓重建',
-    description: '提升結構安全，新增現代設施，符合最新建築規範。',
-    image: 'https://picsum.photos/300/200/?random=02',
-    details: '項目包括地下停車場擴建、電梯現代化，以及外牆翻新，總工期 12 個月。',
-    location: '台中市北區'
+
+// 模擬案例資料（從後端獲取）
+onMounted(async () => {
+  try {
+    const docRef = doc(db, 'cases', caseId)
+    const docSnap = await getDoc(docRef)
+    if (docSnap.exists()) {
+      selectedCase.value = { id: docSnap.id, ...docSnap.data() }
+    } else {
+      console.error('案例不存在')
+    }
+  } catch (error) {
+    console.error('讀取案例失敗：', error)
   }
-]
-
-// 查找對應案例
-const selectedCase = ref(cases.find(item => item.id === parseInt(caseId)) || {})
+})
 </script>
+
 <template>
   <div class="container mt-5">
     <h1 class="text-center">{{ selectedCase.title || '案例未找到' }}</h1>

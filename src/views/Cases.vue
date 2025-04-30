@@ -1,19 +1,21 @@
 <script setup>
+import { ref, onMounted } from 'vue'
+import { db } from '../firebase'
+import { collection, getDocs } from 'firebase/firestore'
 // 簡單案例清單
-const cases = [
-  {
-    id: 1,
-    title: '台中老屋翻新',
-    description: '將 30 年老屋改造成現代住宅。',
-    image: 'https://picsum.photos/300/200/?random=01'
-  },
-  {
-    id: 2,
-    title: '商業大樓重建',
-    description: '提升結構安全，新增現代設施。',
-    image: 'https://picsum.photos/300/200/?random=02'
+const cases = ref([])
+
+onMounted(async () => {
+  try {
+    const querySnapshot = await getDocs(collection(db, 'cases'))
+    cases.value = querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }))
+  } catch (error) {
+    console.error('讀取案例失敗：', error)
   }
-]
+})
 </script>
 <template>
   <div class="container mt-5">
