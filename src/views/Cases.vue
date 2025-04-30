@@ -18,20 +18,18 @@ onMounted(async () => {
 })
 </script>
 <template>
-  <div class="container mt-5">
-    <h1 class="text-center">案例展示</h1>
+<div class="container mt-5">
+    <h1 class="text-center mb-4">案例展示</h1>
     <div class="row">
-      <div class="col-md-6" v-for="item in cases" :key="item.id">
-        <router-link :to="`/cases/${item.id}`" class="text-decoration-none">
-          <div class="card mb-3 shadow-sm hover-lift">
-            <img :src="item.image" class="card-img-top" alt="案例圖片" style="height: 200px; object-fit: cover;">
-            <div class="card-body">
-              <h5 class="card-title">{{ item.title }}</h5>
-              <p class="card-text text-muted">{{ item.description }}</p>
-              <router-link :to="`/cases/${item.id}`" class="btn btn-outline-primary btn-sm">查看詳情</router-link>
-            </div>
+      <div class="col-md-4" v-for="item in cases" :key="item.id">
+        <div class="card mb-4 shadow-sm hover-lift">
+          <img :src="item.images[0] || 'https://via.placeholder.com/300'" class="card-img-top" alt="案例圖片" style="height: 200px; object-fit: cover;">
+          <div class="card-body">
+            <h5 class="card-title">{{ item.title }}</h5>
+            <p class="card-text">{{ item.description }}</p>
+            <router-link :to="`/cases/${item.id}`" class="btn btn-primary">查看詳情</router-link>
           </div>
-        </router-link>
+        </div>
       </div>
     </div>
   </div>

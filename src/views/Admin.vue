@@ -12,7 +12,7 @@ const cases = ref([])
 const newCase = ref({
   title: '',
   description: '',
-  image: '',
+  images: [],
   details: '',
   location: ''
 })
@@ -20,8 +20,8 @@ const editingCase = ref(null)
 const successMessage = ref('')
 const errorMessage = ref('')
 const caseToDelete = ref(null)
-const newImageFile = ref(null)
-const editImageFile = ref(null)
+const newImageFiles = ref([]) // 改為陣列
+const editImageFiles = ref([])
 const maxFileSize = 2 * 1024 * 1024 // 2MB
 
 // 監聽用戶狀態
@@ -35,7 +35,8 @@ const loadCases = async () => {
     const querySnapshot = await getDocs(collection(db, 'cases'))
     cases.value = querySnapshot.docs.map(doc => ({
       id: doc.id,
-      ...doc.data()
+      ...doc.data(),
+      images: doc.data().images || [doc.data().image] // 兼容舊資料
     }))
   } catch (error) {
     console.error('載入案例失敗：', error)
@@ -44,37 +45,41 @@ const loadCases = async () => {
 loadCases()
 
 // 上傳圖片
-const uploadImage = async (file) => {
-  if (!file) return null
-  if (file.size > maxFileSize) {
-    errorMessage.value = '圖片過大，請壓縮至2MB以下'
-    return null
+const uploadImages = async (files) => {
+  const urls = []
+  for (const file of files) {
+    if (file.size > maxFileSize) {
+      errorMessage.value = `圖片 ${file.name} 過大，請壓縮至2MB以下`
+      return null
+    }
+    try {
+      const storagePath = `cases/${Date.now()}_${file.name}`
+      const fileRef = storageRef(storage, storagePath)
+      await uploadBytes(fileRef, file)
+      const url = await getDownloadURL(fileRef)
+      urls.push(url)
+    } catch (error) {
+      console.error('圖片上傳失敗：', error)
+      errorMessage.value = '圖片上傳失敗，請稍後再試'
+      return null
+    }
   }
-  try {
-    const storagePath = `cases/${Date.now()}_${file.name}`
-    const fileRef = storageRef(storage, storagePath)
-    await uploadBytes(fileRef, file)
-    return await getDownloadURL(fileRef)
-  } catch (error) {
-    console.error('圖片上傳失敗：', error)
-    errorMessage.value = '圖片上傳失敗，請稍後再試'
-    throw error
-  }
+  return urls
 }
 
 // 新增案例
 const addCase = async () => {
   try {
-    let imageUrl = newCase.value.image
-    if (newImageFile.value) {
-      imageUrl = await uploadImage(newImageFile.value)
-      if (!imageUrl) return
+    let imageUrls = newCase.value.images
+    if (newImageFiles.value.length > 0) {
+      imageUrls = await uploadImages(newImageFiles.value)
+      if (!imageUrls) return
     }
-    await addDoc(collection(db, 'cases'), { ...newCase.value, image: imageUrl })
+    await addDoc(collection(db, 'cases'), { ...newCase.value, images: imageUrls })
     successMessage.value = '案例新增成功！'
     errorMessage.value = ''
     newCase.value = { title: '', description: '', image: '', details: '', location: '' }
-    newImageFile.value = null
+    newImageFiles.value = []
     loadCases()
   } catch (error) {
     console.error('新增案例失敗：', error)
@@ -91,23 +96,23 @@ const editCase = (item) => {
 const updateCase = async () => {
   if (!editingCase.value) return
   try {
-    let imageUrl = editingCase.value.image
-    if (editImageFile.value) {
-      imageUrl = await uploadImage(editImageFile.value)
-      if (!imageUrl) return
+    let imageUrls = editingCase.value.images
+    if (editImageFiles.value.length > 0) {
+      imageUrls = await uploadImages(editImageFiles.value)
+      if (!imageUrls) return
     }
     const docRef = doc(db, 'cases', editingCase.value.id)
     await updateDoc(docRef, {
       title: editingCase.value.title,
       description: editingCase.value.description,
-      image: imageUrl,
+      image: imageUrls,
       details: editingCase.value.details,
       location: editingCase.value.location
     })
     successMessage.value = '案例更新成功！'
     errorMessage.value = ''
     editingCase.value = null
-    editImageFile.value = null
+    editImageFiles.value = []
     loadCases()
   } catch (error) {
     console.error('更新案例失敗：', error)
@@ -118,7 +123,7 @@ const updateCase = async () => {
 
 const cancelEdit = () => {
   editingCase.value = null
-  editImageFile.value = null
+  editImageFiles.value = []
 }
 
 // 刪除案例
@@ -167,12 +172,12 @@ const logout = async () => {
             <input v-model="newCase.title" type="text" class="form-control" id="title" required>
           </div>
           <div class="mb-3">
-            <label for="image-file" class="form-label">上傳圖片（建議壓縮至500KB以下）</label>
-            <input type="file" class="form-control" id="image-file" accept="image/jpeg,image/png" @change="newImageFile = $event.target.files[0]">
+            <label for="image-files" class="form-label">上傳圖片（建議壓縮至500KB以下，可選多張）</label>
+            <input type="file" class="form-control" id="image-files" accept="image/jpeg,image/png" multiple @change="newImageFiles = $event.target.files">
           </div>
           <div class="mb-3">
-            <label for="image-url" class="form-label">或輸入圖片URL</label>
-            <input v-model="newCase.image" type="url" class="form-control" id="image-url">
+            <label for="image-url" class="form-label">或輸入圖片URL（以逗號分隔多個URL）</label>
+            <input v-model="newCase.images" type="text" class="form-control" id="image-url" placeholder="例如：url1,url2">
           </div>
           <div class="mb-3">
             <label for="details" class="form-label">詳細說明</label>
@@ -208,12 +213,12 @@ const logout = async () => {
             <textarea v-model="editingCase.description" class="form-control" id="edit-description" rows="3" required></textarea>
           </div>
           <div class="mb-3">
-            <label for="edit-image-file" class="form-label">上傳新圖片（建議壓縮至500KB以下）</label>
-            <input type="file" class="form-control" id="edit-image-file" accept="image/jpeg,image/png" @change="editImageFile = $event.target.files[0]">
+            <label for="edit-image-files" class="form-label">上傳新圖片（建議壓縮至500KB以下，可選多張）</label>
+            <input type="file" class="form-control" id="edit-image-files" accept="image/jpeg,image/png" multiple @change="editImageFiles = $event.target.files">
           </div>
           <div class="mb-3">
-            <label for="edit-image-url" class="form-label">或輸入圖片URL</label>
-            <input v-model="editingCase.image" type="url" class="form-control" id="edit-image-url">
+            <label for="edit-image-url" class="form-label">或輸入圖片URL（以逗號分隔多個URL）</label>
+            <input v-model="editingCase.images" type="text" class="form-control" id="edit-image-url" placeholder="例如：url1,url2">
           </div>
           <div class="mb-3">
             <label for="edit-details" class="form-label">詳細說明</label>
