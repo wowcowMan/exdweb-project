@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { auth, db } from '../firebase'
 import { signOut, onAuthStateChanged } from 'firebase/auth'
-import { collection, addDoc, getDocs, doc, updateDoc } from 'firebase/firestore'
+import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore'
 
 const router = useRouter()
 const cases = ref([])
@@ -15,9 +15,9 @@ const newCase = ref({
   location: ''
 })
 const editingCase = ref(null)
-
 const successMessage = ref('')
 const errorMessage = ref('')
+const caseToDelete = ref(null)
 
 // 監聽用戶狀態
 onAuthStateChanged(auth, (user) => {
@@ -53,9 +53,11 @@ const addCase = async () => {
   }
 }
 
+// 編輯案例
 const editCase = (item) => {
   editingCase.value = { ...item }
 }
+
 const updateCase = async () => {
   if (!editingCase.value) return
   try {
@@ -77,8 +79,29 @@ const updateCase = async () => {
     successMessage.value = ''
   }
 }
+
 const cancelEdit = () => {
   editingCase.value = null
+}
+
+// 刪除案例
+const confirmDelete = (item) => {
+  caseToDelete.value = item
+}
+
+const deleteCase = async () => {
+  if (!caseToDelete.value) return
+  try {
+    await deleteDoc(doc(db, 'cases', caseToDelete.value.id))
+    successMessage.value = '案例刪除成功！'
+    errorMessage.value = ''
+    caseToDelete.value = null
+    loadCases()
+  } catch (error) {
+    console.error('刪除案例失敗：', error)
+    errorMessage.value = '刪除失敗，請稍後再試'
+    successMessage.value = ''
+  }
 }
 
 // 登出
@@ -145,8 +168,7 @@ const logout = async () => {
           </div>
           <div class="mb-3">
             <label for="edit-description" class="form-label">描述</label>
-            <textarea v-model="editingCase.description" class="form-control" id="edit-description" rows="3"
-              required></textarea>
+            <textarea v-model="editingCase.description" class="form-control" id="edit-description" rows="3" required></textarea>
           </div>
           <div class="mb-3">
             <label for="edit-image" class="form-label">圖片 URL</label>
@@ -178,49 +200,43 @@ const logout = async () => {
       <div class="card-body">
         <h2 class="h4 mb-3">現有案例</h2>
         <ul class="list-group">
-          <li class="list-group-item d-flex justify-content-between align-items-center" v-for="item in cases"
-            :key="item.id">
+          <li class="list-group-item d-flex justify-content-between align-items-center" v-for="item in cases" :key="item.id">
             {{ item.title }}
             <span>
               <router-link :to="`/cases/${item.id}`" class="btn btn-sm btn-outline-primary me-2">查看</router-link>
-              <button class="btn btn-sm btn-outline-secondary" @click="editCase(item)">編輯</button>
+              <button class="btn btn-sm btn-outline-success me-2" @click="editCase(item)">編輯</button>
+              <button class="btn btn-sm btn-outline-danger" @click="confirmDelete(item)" data-bs-toggle="modal" data-bs-target="#deleteModal">刪除</button>
             </span>
           </li>
         </ul>
       </div>
     </div>
+    <!-- 刪除確認模態框 -->
+    <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="deleteModalLabel">確認刪除</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            你確定要刪除案例「{{ caseToDelete?.title }}」嗎？此操作無法恢復。
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+            <button type="button" class="btn btn-danger" @click="deleteCase" data-bs-dismiss="modal">刪除</button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 <style scoped>
-.mt-5 {
-  margin-top: 3rem;
-}
-
-.mb-4 {
-  margin-bottom: 1.5rem;
-}
-
-.card {
-  border: none;
-  border-radius: 10px;
-}
-
-.shadow-sm {
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-}
-
-.card-body {
-  padding: 2rem;
-}
-
-.btn-primary {
-  background-color: #007bff;
-  border: none;
-  padding: 0.5rem 1.5rem;
-}
-
-.list-group-item {
-  border-radius: 5px;
-  margin-bottom: 0.5rem;
-}
+.mt-5 { margin-top: 3rem; }
+.mb-4 { margin-bottom: 1.5rem; }
+.card { border: none; border-radius: 10px; }
+.shadow-sm { box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); }
+.card-body { padding: 2rem; }
+.btn-primary { background-color: #007bff; border: none; padding: 0.5rem 1.5rem; }
+.list-group-item { border-radius: 5px; margin-bottom: 0.5rem; }
 </style>
