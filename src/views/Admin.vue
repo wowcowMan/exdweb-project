@@ -1,9 +1,11 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { auth, db } from '../firebase'
+import { auth, db, storage } from '../firebase'
 import { signOut, onAuthStateChanged } from 'firebase/auth'
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore'
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage'
+
 
 const router = useRouter()
 const cases = ref([])
@@ -18,6 +20,9 @@ const editingCase = ref(null)
 const successMessage = ref('')
 const errorMessage = ref('')
 const caseToDelete = ref(null)
+const newImageFile = ref(null)
+const editImageFile = ref(null)
+const maxFileSize = 2 * 1024 * 1024 // 2MB
 
 // 監聽用戶狀態
 onAuthStateChanged(auth, (user) => {
@@ -38,13 +43,38 @@ const loadCases = async () => {
 }
 loadCases()
 
+// 上傳圖片
+const uploadImage = async (file) => {
+  if (!file) return null
+  if (file.size > maxFileSize) {
+    errorMessage.value = '圖片過大，請壓縮至2MB以下'
+    return null
+  }
+  try {
+    const storagePath = `cases/${Date.now()}_${file.name}`
+    const fileRef = storageRef(storage, storagePath)
+    await uploadBytes(fileRef, file)
+    return await getDownloadURL(fileRef)
+  } catch (error) {
+    console.error('圖片上傳失敗：', error)
+    errorMessage.value = '圖片上傳失敗，請稍後再試'
+    throw error
+  }
+}
+
 // 新增案例
 const addCase = async () => {
   try {
-    await addDoc(collection(db, 'cases'), newCase.value)
+    let imageUrl = newCase.value.image
+    if (newImageFile.value) {
+      imageUrl = await uploadImage(newImageFile.value)
+      if (!imageUrl) return
+    }
+    await addDoc(collection(db, 'cases'), { ...newCase.value, image: imageUrl })
     successMessage.value = '案例新增成功！'
     errorMessage.value = ''
     newCase.value = { title: '', description: '', image: '', details: '', location: '' }
+    newImageFile.value = null
     loadCases()
   } catch (error) {
     console.error('新增案例失敗：', error)
@@ -61,17 +91,23 @@ const editCase = (item) => {
 const updateCase = async () => {
   if (!editingCase.value) return
   try {
+    let imageUrl = editingCase.value.image
+    if (editImageFile.value) {
+      imageUrl = await uploadImage(editImageFile.value)
+      if (!imageUrl) return
+    }
     const docRef = doc(db, 'cases', editingCase.value.id)
     await updateDoc(docRef, {
       title: editingCase.value.title,
       description: editingCase.value.description,
-      image: editingCase.value.image,
+      image: imageUrl,
       details: editingCase.value.details,
       location: editingCase.value.location
     })
     successMessage.value = '案例更新成功！'
     errorMessage.value = ''
     editingCase.value = null
+    editImageFile.value = null
     loadCases()
   } catch (error) {
     console.error('更新案例失敗：', error)
@@ -82,6 +118,7 @@ const updateCase = async () => {
 
 const cancelEdit = () => {
   editingCase.value = null
+  editImageFile.value = null
 }
 
 // 刪除案例
@@ -130,12 +167,12 @@ const logout = async () => {
             <input v-model="newCase.title" type="text" class="form-control" id="title" required>
           </div>
           <div class="mb-3">
-            <label for="description" class="form-label">描述</label>
-            <textarea v-model="newCase.description" class="form-control" id="description" rows="3" required></textarea>
+            <label for="image-file" class="form-label">上傳圖片（建議壓縮至500KB以下）</label>
+            <input type="file" class="form-control" id="image-file" accept="image/jpeg,image/png" @change="newImageFile = $event.target.files[0]">
           </div>
           <div class="mb-3">
-            <label for="image" class="form-label">圖片 URL</label>
-            <input v-model="newCase.image" type="url" class="form-control" id="image" required>
+            <label for="image-url" class="form-label">或輸入圖片URL</label>
+            <input v-model="newCase.image" type="url" class="form-control" id="image-url">
           </div>
           <div class="mb-3">
             <label for="details" class="form-label">詳細說明</label>
@@ -171,8 +208,12 @@ const logout = async () => {
             <textarea v-model="editingCase.description" class="form-control" id="edit-description" rows="3" required></textarea>
           </div>
           <div class="mb-3">
-            <label for="edit-image" class="form-label">圖片 URL</label>
-            <input v-model="editingCase.image" type="url" class="form-control" id="edit-image" required>
+            <label for="edit-image-file" class="form-label">上傳新圖片（建議壓縮至500KB以下）</label>
+            <input type="file" class="form-control" id="edit-image-file" accept="image/jpeg,image/png" @change="editImageFile = $event.target.files[0]">
+          </div>
+          <div class="mb-3">
+            <label for="edit-image-url" class="form-label">或輸入圖片URL</label>
+            <input v-model="editingCase.image" type="url" class="form-control" id="edit-image-url">
           </div>
           <div class="mb-3">
             <label for="edit-details" class="form-label">詳細說明</label>
