@@ -1,3 +1,4 @@
+```vue
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
@@ -23,6 +24,7 @@ const newImageFiles = ref([])
 const editImageFiles = ref([])
 const maxFileSize = 2 * 1024 * 1024 // 2MB
 const triggerButton = ref(null)
+const isLoading = ref(false) // 新增：Loading 狀態
 
 // 監聽用戶狀態
 onAuthStateChanged(auth, (user) => {
@@ -55,7 +57,7 @@ const uploadImages = async (files) => {
     }
     try {
       const storagePath = `cases/${Date.now()}_${file.name}`
-      const fileRef = storageRef(storage, storagePath) // 修正：使用 storage
+      const fileRef = storageRef(storage, storagePath)
       await uploadBytes(fileRef, file)
       const url = await getDownloadURL(fileRef)
       urls.push(url)
@@ -70,11 +72,15 @@ const uploadImages = async (files) => {
 
 // 新增案例
 const addCase = async () => {
+  isLoading.value = true // 開始 Loading
   try {
     let imageUrls = newCase.value.images
     if (newImageFiles.value.length > 0) {
       imageUrls = await uploadImages(newImageFiles.value)
-      if (!imageUrls) return
+      if (!imageUrls) {
+        isLoading.value = false
+        return
+      }
     }
     await addDoc(collection(db, 'cases'), { ...newCase.value, images: imageUrls })
     successMessage.value = '案例新增成功！'
@@ -86,6 +92,8 @@ const addCase = async () => {
     console.error('新增案例失敗：', error)
     errorMessage.value = `新增案例失敗：${error.message}`
     successMessage.value = ''
+  } finally {
+    isLoading.value = false // 結束 Loading
   }
 }
 
@@ -96,11 +104,15 @@ const editCase = (item) => {
 
 const updateCase = async () => {
   if (!editingCase.value) return
+  isLoading.value = true // 開始 Loading
   try {
     let imageUrls = editingCase.value.images
     if (editImageFiles.value.length > 0) {
       imageUrls = await uploadImages(editImageFiles.value)
-      if (!imageUrls) return
+      if (!imageUrls) {
+        isLoading.value = false
+        return
+      }
     }
     const docRef = doc(db, 'cases', editingCase.value.id)
     await updateDoc(docRef, {
@@ -119,6 +131,8 @@ const updateCase = async () => {
     console.error('更新案例失敗：', error)
     errorMessage.value = `更新案例失敗：${error.message}`
     successMessage.value = ''
+  } finally {
+    isLoading.value = false // 結束 Loading
   }
 }
 
@@ -135,6 +149,7 @@ const confirmDelete = (item, event) => {
 
 const deleteCase = async () => {
   if (!caseToDelete.value) return
+  isLoading.value = true // 開始 Loading
   if (triggerButton.value) {
     triggerButton.value.focus()
   }
@@ -149,6 +164,8 @@ const deleteCase = async () => {
     console.error('刪除案例失敗：', error)
     errorMessage.value = `刪除案例失敗：${error.message}`
     successMessage.value = ''
+  } finally {
+    isLoading.value = false // 結束 Loading
   }
 }
 
@@ -200,26 +217,26 @@ onUnmounted(() => {
     <div class="card shadow-sm mb-4">
       <div class="card-body">
         <h2 class="h4 mb-3">新增案例</h2>
-        <form @submit.prevent="addCase">
+        <form @submit.prevent="addCase" :class="{ 'loading-form': isLoading }">
           <div class="mb-3">
             <label for="title" class="form-label">標題</label>
-            <input v-model="newCase.title" type="text" class="form-control" id="title" required>
+            <input v-model="newCase.title" type="text" class="form-control" id="title" required :disabled="isLoading">
           </div>
           <div class="mb-3">
             <label for="image-files" class="form-label">上傳圖片（建議壓縮至500KB以下，可選多張）</label>
-            <input type="file" class="form-control" id="image-files" accept="image/jpeg,image/png" multiple @change="newImageFiles = $event.target.files">
+            <input type="file" class="form-control" id="image-files" accept="image/jpeg,image/png" multiple @change="newImageFiles = $event.target.files" :disabled="isLoading">
           </div>
           <div class="mb-3">
             <label for="image-url" class="form-label">或輸入圖片URL（以逗號分隔多個URL）</label>
-            <input v-model="newCase.images" type="text" class="form-control" id="image-url" placeholder="例如：url1,url2">
+            <input v-model="newCase.images" type="text" class="form-control" id="image-url" placeholder="例如：url1,url2" :disabled="isLoading">
           </div>
           <div class="mb-3">
             <label for="details" class="form-label">詳細說明</label>
-            <textarea v-model="newCase.details" class="form-control" id="details" rows="4" required></textarea>
+            <textarea v-model="newCase.details" class="form-control" id="details" rows="4" required :disabled="isLoading"></textarea>
           </div>
           <div class="mb-3">
             <label for="location" class="form-label">地點</label>
-            <input v-model="newCase.location" type="text" class="form-control" id="location" required>
+            <input v-model="newCase.location" type="text" class="form-control" id="location" required :disabled="isLoading">
           </div>
           <div v-if="successMessage" class="alert alert-success" role="alert">
             {{ successMessage }}
@@ -227,8 +244,11 @@ onUnmounted(() => {
           <div v-if="errorMessage" class="alert alert-danger" role="alert">
             {{ errorMessage }}
           </div>
-          <div class="text-center">
-            <button type="submit" class="btn btn-primary">新增案例</button>
+          <div class="text-center position-relative">
+            <button type="submit" class="btn btn-primary" :disabled="isLoading">
+              <span v-if="isLoading" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+              {{ isLoading ? '新增中...' : '新增案例' }}
+            </button>
           </div>
         </form>
       </div>
@@ -237,30 +257,30 @@ onUnmounted(() => {
     <div v-if="editingCase" class="card shadow-sm mb-4">
       <div class="card-body">
         <h2 class="h4 mb-3">編輯案例</h2>
-        <form @submit.prevent="updateCase">
+        <form @submit.prevent="updateCase" :class="{ 'loading-form': isLoading }">
           <div class="mb-3">
             <label for="edit-title" class="form-label">標題</label>
-            <input v-model="editingCase.title" type="text" class="form-control" id="edit-title" required>
+            <input v-model="editingCase.title" type="text" class="form-control" id="edit-title" required :disabled="isLoading">
           </div>
           <div class="mb-3">
             <label for="edit-description" class="form-label">描述</label>
-            <textarea v-model="editingCase.description" class="form-control" id="edit-description" rows="3" required></textarea>
+            <textarea v-model="editingCase.description" class="form-control" id="edit-description" rows="3" required :disabled="isLoading"></textarea>
           </div>
           <div class="mb-3">
             <label for="edit-image-files" class="form-label">上傳新圖片（建議壓縮至500KB以下，可選多張）</label>
-            <input type="file" class="form-control" id="edit-image-files" accept="image/jpeg,image/png" multiple @change="editImageFiles = $event.target.files">
+            <input type="file" class="form-control" id="edit-image-files" accept="image/jpeg,image/png" multiple @change="editImageFiles = $event.target.files" :disabled="isLoading">
           </div>
           <div class="mb-3">
             <label for="edit-image-url" class="form-label">或輸入圖片URL（以逗號分隔多個URL）</label>
-            <input v-model="editingCase.images" type="text" class="form-control" id="edit-image-url" placeholder="例如：url1,url2">
+            <input v-model="editingCase.images" type="text" class="form-control" id="edit-image-url" placeholder="例如：url1,url2" :disabled="isLoading">
           </div>
           <div class="mb-3">
             <label for="edit-details" class="form-label">詳細說明</label>
-            <textarea v-model="editingCase.details" class="form-control" id="edit-details" rows="4" required></textarea>
+            <textarea v-model="editingCase.details" class="form-control" id="edit-details" rows="4" required :disabled="isLoading"></textarea>
           </div>
           <div class="mb-3">
             <label for="edit-location" class="form-label">地點</label>
-            <input v-model="editingCase.location" type="text" class="form-control" id="edit-location" required>
+            <input v-model="editingCase.location" type="text" class="form-control" id="edit-location" required :disabled="isLoading">
           </div>
           <div v-if="successMessage" class="alert alert-success" role="alert">
             {{ successMessage }}
@@ -268,9 +288,12 @@ onUnmounted(() => {
           <div v-if="errorMessage" class="alert alert-danger" role="alert">
             {{ errorMessage }}
           </div>
-          <div class="text-center">
-            <button type="submit" class="btn btn-primary me-2">更新案例</button>
-            <button type="button" class="btn btn-secondary" @click="cancelEdit">取消</button>
+          <div class="text-center position-relative">
+            <button type="submit" class="btn btn-primary me-2" :disabled="isLoading">
+              <span v-if="isLoading" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+              {{ isLoading ? '更新中...' : '更新案例' }}
+            </button>
+            <button type="button" class="btn btn-secondary" @click="cancelEdit" :disabled="isLoading">取消</button>
           </div>
         </form>
       </div>
@@ -303,8 +326,11 @@ onUnmounted(() => {
             你確定要刪除案例「{{ caseToDelete?.title }}」嗎？此操作無法恢復。
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-            <button type="button" class="btn btn-danger" @click="deleteCase" data-bs-dismiss="modal">刪除</button>
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" :disabled="isLoading">取消</button>
+            <button type="button" class="btn btn-danger" @click="deleteCase" data-bs-dismiss="modal" :disabled="isLoading">
+              <span v-if="isLoading" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+              {{ isLoading ? '刪除中...' : '刪除' }}
+            </button>
           </div>
         </div>
       </div>
@@ -320,4 +346,15 @@ onUnmounted(() => {
 .card-body { padding: 2rem; }
 .btn-primary { background-color: #007bff; border: none; padding: 0.5rem 1.5rem; }
 .list-group-item { border-radius: 5px; margin-bottom: 0.5rem; }
+
+/* Loading 樣式 */
+.loading-form {
+  position: relative;
+  opacity: 0.7;
+  pointer-events: none; /* 禁用互動 */
+}
+.spinner-border {
+  vertical-align: middle;
+}
 </style>
+```
