@@ -9,13 +9,45 @@ import Login from '../views/Login.vue'
 import Admin from '../views/Admin.vue'
 
 const routes = [
-  { path: '/', component: Home },
-  { path: '/about', component: About },
-  { path: '/cases', component: Cases },
-  { path: '/cases/:id', component: CaseDetail },
-  { path: '/contact', component: Contact },
-  { path: '/login', component: Login },
-  { path: '/admin', component: Admin, meta: { requiresAuth: true } }
+  { path: '/',
+    name:'Home',
+    component: Home,
+    meta: { breadcrumb: '首頁' }
+  },
+  {
+    path: '/about',
+    name: 'About',
+    component: About,
+    meta: { breadcrumb: '關於我們' }
+  },
+  {
+    path: '/cases',
+    name: 'Cases',
+    component: Cases,
+    meta: { breadcrumb: '案例' }
+  },
+  {
+    path: '/cases/:id',
+    name: 'CaseDetail',
+    component: CaseDetail,
+    meta: { breadcrumb: '案例詳情' }
+  },
+  { path: '/contact',
+    name: 'Contact',
+    component: Contact,
+    meta: { breadcrumb: '聯絡我們'}
+  },
+  { path: '/login',
+    name: 'Login',
+    component: Login,
+    meta: { breadcrumb: '登入' }
+  },
+  {
+    path: '/admin',
+    name: 'Admin',
+    component: Admin,
+    meta: { breadcrumb: '管理後台', requiresAuth: true }
+  },
 ]
 
 const router = createRouter({

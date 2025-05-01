@@ -63,7 +63,7 @@ onMounted(async () => {
             :key="'item-' + index"
             :class="{ active: index === 0 }"
           >
-            <img :src="image" class="d-block" alt="案例圖片">
+            <img :src="image" class="d-block" alt="`案例 ${case.title} `" loading="lazy">
           </div>
         </div>
         <!-- 箭頭 -->

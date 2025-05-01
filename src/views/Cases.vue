@@ -43,4 +43,13 @@ onMounted(async () => {
 .hover-lift:hover { transform: translateY(-5px); box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2); }
 .card-title { color: #343a40; }
 .card-text { color: #6c757d; }
+
+@media (max-width: 576px) {
+  .card-body {
+    padding: 1rem;
+  }
+  .form-label {
+    font-size: 0.9rem;
+  }
+}
 </style>

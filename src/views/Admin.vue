@@ -1,4 +1,3 @@
-```vue
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
@@ -356,5 +355,13 @@ onUnmounted(() => {
 .spinner-border {
   vertical-align: middle;
 }
+
+@media (max-width: 576px) {
+  .card-body {
+    padding: 1rem;
+  }
+  .form-label {
+    font-size: 0.9rem;
+  }
+}
 </style>
-```
