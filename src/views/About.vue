@@ -105,7 +105,7 @@ onUnmounted(() => {
                         <!-- 第二列：經歷 -->
                         <div class="experience-container d-md-flex" :class="{ expanded: expandedMembers[member.id] }">
                           <h6 class="mb-3 ms-1 col-lg-1 writing-mode-vertical">相關經歷</h6>
-                          <div :class="{ 'scroll-wrapper pe-2': expandedMembers[member.id] }" :id="`experiences-${member.id}`">
+                          <div class="col" :class="{ 'scroll-wrapper pe-2': expandedMembers[member.id] }" :id="`experiences-${member.id}`">
                             <ul class="list-unstyled">
                               <li v-for="(exp, index) in member.experiences" :key="index" class="mb-2" v-show="index < 3 || expandedMembers[member.id]">
                                 {{ exp }}
